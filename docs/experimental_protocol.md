@@ -523,3 +523,38 @@ After completion of the final experiments, the protocol, source code, synthetic
 data-generation instructions, raw results, analysis scripts, and documentation
 will be prepared as a versioned release for deposit in a persistent repository,
 subject to publication and institutional requirements.
+
+## Adapter error and authorization semantics
+
+The following semantics are backend-neutral and apply identically to
+the Traditional and Fabric adapters:
+
+- OP1 is strict creation. An existing record raises
+  `RecordAlreadyExistsError`.
+- OP2 requires a matching `ALLOW` rule. A missing rule or explicit
+  `DENY` raises `AccessDeniedError`.
+- OP2 through OP6 raise `RecordNotFoundError` when the target record
+  does not exist.
+- OP3 upserts one authorization rule per record and principal tuple.
+  The submitted rule identifier becomes the stored identifier.
+- OP4 defaults to `DENY` with `matched_rule_id=None` when no rule
+  matches and records every ALLOW or DENY decision.
+- OP6 returns the ordered protocol events only. Audit-chain
+  verification remains internal instrumentation and does not alter
+  the frozen OP6 response schema.
+
+## Traditional database privilege and audit-chain scope
+
+PostgreSQL initialization uses a bootstrap administrator that is
+separate from the normal application role. The adapter connects only
+as a `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE` role with table-level
+privileges limited to the operations required by OP1 through OP6.
+Privileged database-administrator tampering is therefore evaluated as
+a distinct threat scenario rather than as normal application access.
+
+The Traditional adapter deliberately maintains one database-wide
+hash-linked audit chain. A transaction-scoped advisory lock serializes
+the short audit-append critical section for OP1, OP3, and OP4 across
+concurrent records. This serialization is part of the measured
+Traditional architecture and must not be removed or replaced by a
+per-record chain during the frozen experimental campaign.
