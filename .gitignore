@@ -13,6 +13,10 @@ htmlcov/
 .DS_Store
 docker-data/
 tmp/
+bin/
+architecture-fabric/network/organizations/
+architecture-fabric/network/artifacts/
+architecture-fabric/chaincode/vendor/
 results/pilot/*
 !results/pilot/.gitkeep
 

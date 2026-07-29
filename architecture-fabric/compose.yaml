@@ -1,0 +1,186 @@
+name: health-arch-fabric
+
+services:
+  orderer:
+    container_name: health-arch-orderer
+    image: hyperledger/fabric-orderer:2.5.15@sha256:9972c209be47f45e377a24c88f2e3d21fae4dc224751c68bdd33f2e7a603ffa8
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+      ORDERER_GENERAL_LISTENPORT: 7050
+      ORDERER_GENERAL_LOCALMSPID: OrdererMSP
+      ORDERER_GENERAL_LOCALMSPDIR: /var/hyperledger/orderer/msp
+      ORDERER_GENERAL_BOOTSTRAPMETHOD: none
+      ORDERER_GENERAL_TLS_ENABLED: "true"
+      ORDERER_GENERAL_TLS_PRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_GENERAL_TLS_CERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_GENERAL_TLS_ROOTCAS: '[/var/hyperledger/orderer/tls/ca.crt]'
+      ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_GENERAL_CLUSTER_ROOTCAS: '[/var/hyperledger/orderer/tls/ca.crt]'
+      ORDERER_CHANNELPARTICIPATION_ENABLED: "true"
+      ORDERER_ADMIN_LISTENADDRESS: 0.0.0.0:7053
+      ORDERER_ADMIN_TLS_ENABLED: "true"
+      ORDERER_ADMIN_TLS_PRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_ADMIN_TLS_CERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_ADMIN_TLS_CLIENTROOTCAS: '[/var/hyperledger/orderer/tls/ca.crt]'
+      ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:9443
+      ORDERER_METRICS_PROVIDER: prometheus
+    command: orderer
+    ports:
+      - "127.0.0.1:${ORDERER_PORT:-27050}:7050"
+      - "127.0.0.1:${ORDERER_ADMIN_PORT:-27053}:7053"
+      - "127.0.0.1:${ORDERER_OPERATIONS_PORT:-29443}:9443"
+    volumes:
+      - ./network/organizations/ordererOrganizations/hac.example.com/orderers/orderer.hac.example.com/msp:/var/hyperledger/orderer/msp:ro
+      - ./network/organizations/ordererOrganizations/hac.example.com/orderers/orderer.hac.example.com/tls:/var/hyperledger/orderer/tls:ro
+      - fabric-orderer-data:/var/hyperledger/production/orderer
+    networks:
+      fabric:
+        aliases:
+          - orderer.hac.example.com
+    restart: "no"
+
+  peer0org1:
+    container_name: health-arch-peer0-org1
+    image: hyperledger/fabric-peer:2.5.15@sha256:3e25adc31a757ee19dd8a24afdc9ac5aa46a86b3cb56fc93068b0e594706d6aa
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      CORE_PEER_ID: peer0.org1.hac.example.com
+      CORE_PEER_ADDRESS: peer0.org1.hac.example.com:7051
+      CORE_PEER_LISTENADDRESS: 0.0.0.0:7051
+      CORE_PEER_CHAINCODEADDRESS: peer0.org1.hac.example.com:7052
+      CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:7052
+      CORE_PEER_GOSSIP_EXTERNALENDPOINT: peer0.org1.hac.example.com:7051
+      CORE_PEER_GOSSIP_BOOTSTRAP: ""
+      CORE_PEER_LOCALMSPID: Org1MSP
+      CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/fabric/msp
+      CORE_PEER_TLS_ENABLED: "true"
+      CORE_PEER_TLS_CERT_FILE: /etc/hyperledger/fabric/tls/server.crt
+      CORE_PEER_TLS_KEY_FILE: /etc/hyperledger/fabric/tls/server.key
+      CORE_PEER_TLS_ROOTCERT_FILE: /etc/hyperledger/fabric/tls/ca.crt
+      CORE_VM_ENDPOINT: unix:///host/var/run/docker.sock
+      CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: health-arch-fabric-net
+      CORE_LEDGER_STATE_STATEDATABASE: goleveldb
+      CORE_OPERATIONS_LISTENADDRESS: 0.0.0.0:9444
+      CORE_METRICS_PROVIDER: prometheus
+    command: peer node start
+    ports:
+      - "127.0.0.1:${ORG1_PEER_PORT:-27051}:7051"
+      - "127.0.0.1:${ORG1_OPERATIONS_PORT:-29444}:9444"
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ./network/organizations/peerOrganizations/org1.hac.example.com/peers/peer0.org1.hac.example.com/msp:/etc/hyperledger/fabric/msp:ro
+      - ./network/organizations/peerOrganizations/org1.hac.example.com/peers/peer0.org1.hac.example.com/tls:/etc/hyperledger/fabric/tls:ro
+      - fabric-peer0-org1-data:/var/hyperledger/production
+    networks:
+      fabric:
+        aliases:
+          - peer0.org1.hac.example.com
+    restart: "no"
+
+  peer0org2:
+    container_name: health-arch-peer0-org2
+    image: hyperledger/fabric-peer:2.5.15@sha256:3e25adc31a757ee19dd8a24afdc9ac5aa46a86b3cb56fc93068b0e594706d6aa
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      CORE_PEER_ID: peer0.org2.hac.example.com
+      CORE_PEER_ADDRESS: peer0.org2.hac.example.com:7051
+      CORE_PEER_LISTENADDRESS: 0.0.0.0:7051
+      CORE_PEER_CHAINCODEADDRESS: peer0.org2.hac.example.com:7052
+      CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:7052
+      CORE_PEER_GOSSIP_EXTERNALENDPOINT: peer0.org2.hac.example.com:7051
+      CORE_PEER_GOSSIP_BOOTSTRAP: ""
+      CORE_PEER_LOCALMSPID: Org2MSP
+      CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/fabric/msp
+      CORE_PEER_TLS_ENABLED: "true"
+      CORE_PEER_TLS_CERT_FILE: /etc/hyperledger/fabric/tls/server.crt
+      CORE_PEER_TLS_KEY_FILE: /etc/hyperledger/fabric/tls/server.key
+      CORE_PEER_TLS_ROOTCERT_FILE: /etc/hyperledger/fabric/tls/ca.crt
+      CORE_VM_ENDPOINT: unix:///host/var/run/docker.sock
+      CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: health-arch-fabric-net
+      CORE_LEDGER_STATE_STATEDATABASE: goleveldb
+      CORE_OPERATIONS_LISTENADDRESS: 0.0.0.0:9445
+      CORE_METRICS_PROVIDER: prometheus
+    command: peer node start
+    ports:
+      - "127.0.0.1:${ORG2_PEER_PORT:-29051}:7051"
+      - "127.0.0.1:${ORG2_OPERATIONS_PORT:-29445}:9445"
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ./network/organizations/peerOrganizations/org2.hac.example.com/peers/peer0.org2.hac.example.com/msp:/etc/hyperledger/fabric/msp:ro
+      - ./network/organizations/peerOrganizations/org2.hac.example.com/peers/peer0.org2.hac.example.com/tls:/etc/hyperledger/fabric/tls:ro
+      - fabric-peer0-org2-data:/var/hyperledger/production
+    networks:
+      fabric:
+        aliases:
+          - peer0.org2.hac.example.com
+    restart: "no"
+
+  gateway:
+    group_add:
+      - "${GATEWAY_KEY_GID:-1000}"
+    container_name: health-arch-fabric-gateway
+    image: hyperledger/fabric-baseos:2.5.15@sha256:654bd4554bf97c70902e56d530294795372518da7ae2a7cdfccbe397a878c513
+    environment:
+      GATEWAY_LISTEN_ADDRESS: 0.0.0.0:18081
+      FABRIC_MSP_ID: Org1MSP
+      FABRIC_CHANNEL: ${CHANNEL_NAME:-healthchannel}
+      FABRIC_CHAINCODE: ${CHAINCODE_NAME:-healthrecords}
+      FABRIC_PEER_ENDPOINT: peer0.org1.hac.example.com:7051
+      FABRIC_PEER_HOST_ALIAS: peer0.org1.hac.example.com
+      FABRIC_TLS_CERT_PATH: /organizations/peerOrganizations/org1.hac.example.com/peers/peer0.org1.hac.example.com/tls/ca.crt
+      FABRIC_CERT_PATH: /organizations/peerOrganizations/org1.hac.example.com/users/User1@org1.hac.example.com/msp/signcerts
+      FABRIC_KEY_PATH: /organizations/peerOrganizations/org1.hac.example.com/users/User1@org1.hac.example.com/msp/keystore
+      FABRIC_EVALUATE_TIMEOUT: 5s
+      FABRIC_ENDORSE_TIMEOUT: 30s
+      FABRIC_SUBMIT_TIMEOUT: 10s
+      FABRIC_COMMIT_STATUS_TIMEOUT: 60s
+    command: /app/fabric-gateway-bridge
+    ports:
+      - "127.0.0.1:${GATEWAY_BRIDGE_PORT:-18081}:18081"
+    volumes:
+      - ./network/artifacts/fabric-gateway-bridge:/app/fabric-gateway-bridge:ro
+      - ./network/organizations:/organizations:ro
+    depends_on:
+      - peer0org1
+      - peer0org2
+    networks:
+      - fabric
+    restart: "no"
+
+  postgres:
+    container_name: health-arch-fabric-postgres
+    image: postgres:17.10-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:?POSTGRES_ADMIN_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD is required}
+      APP_DB_USER: ${APP_DB_USER:?APP_DB_USER is required}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55433}:5432"
+    volumes:
+      - fabric-postgres-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${APP_DB_USER} -d $${POSTGRES_DB}
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    networks:
+      - fabric
+    restart: "no"
+
+volumes:
+  fabric-orderer-data:
+  fabric-peer0-org1-data:
+  fabric-peer0-org2-data:
+  fabric-postgres-data:
+
+networks:
+  fabric:
+    name: health-arch-fabric-net

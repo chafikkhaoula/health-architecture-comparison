@@ -558,3 +558,33 @@ the short audit-append critical section for OP1, OP3, and OP4 across
 concurrent records. This serialization is part of the measured
 Traditional architecture and must not be removed or replaced by a
 per-record chain during the frozen experimental campaign.
+
+## Fabric implementation binding
+
+The Fabric adapter stores clinical payloads only in its off-chain
+PostgreSQL database. The ledger stores:
+
+- each record locator and authoritative RFC 8785 / SHA-256 digest;
+- one authorization rule per record and principal tuple;
+- OP1, OP3, and OP4 audit events.
+
+Audit sequence numbers are scoped to one record and are encoded as
+fixed-width composite-key attributes. OP6 therefore returns a strictly
+ordered per-record history without introducing a global Fabric
+world-state counter or cross-record MVCC contention.
+
+The application uses one long-lived Go Fabric Gateway connection.
+Every Fabric write follows proposal, endorsement, submission, and
+commit-status retrieval. The operation succeeds only when the returned
+validation code is `VALID`. The chaincode definition uses the explicit
+policy:
+
+`AND('Org1MSP.peer','Org2MSP.peer')`
+
+OP1 stages its off-chain insertion inside a PostgreSQL transaction and
+holds that transaction open until the Fabric transaction is confirmed.
+Fabric failure therefore rolls the staged insertion back. PostgreSQL
+and Fabric do not provide a distributed atomic commit; a PostgreSQL
+commit failure after a `VALID` Fabric commit is retained as a
+consistency failure with the Fabric transaction receipt rather than
+being reported as a successful operation.
