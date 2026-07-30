@@ -588,3 +588,33 @@ and Fabric do not provide a distributed atomic commit; a PostgreSQL
 commit failure after a `VALID` Fabric commit is retained as a
 consistency failure with the Fabric transaction receipt rather than
 being reported as a successful operation.
+
+## Frozen HTTP experiment boundary
+
+The common benchmark client will invoke both architectures through the
+same versioned HTTP contract:
+
+| Operation | Method and path | Success status |
+|---|---|---|
+| OP1 | `POST /v1/operations/OP1` | 201 |
+| OP2 | `POST /v1/operations/OP2` | 200 |
+| OP3 | `POST /v1/operations/OP3` | 200 |
+| OP4 | `POST /v1/operations/OP4` | 200 |
+| OP5 | `POST /v1/operations/OP5` | 200 |
+| OP6 | `POST /v1/operations/OP6` | 200 |
+
+All request and success-response bodies use the frozen shared Pydantic
+schemas. At the HTTP boundary, valid JSON enum strings are converted into
+their typed enum instances before the request reaches either adapter.
+Unknown enum values remain request-validation failures. Semantic failures
+map consistently across architectures:
+`RecordAlreadyExistsError` to 409, `RecordNotFoundError` to 404, and
+`AccessDeniedError` to 403. Backend failures map to 503.
+
+When available, Fabric write metadata is returned through the
+`X-Fabric-Tx-Id` and `X-Fabric-Validation-Code` response headers.
+
+Measured latency starts immediately before the benchmark client sends
+the HTTP request and ends only after the complete response body has
+been received. Adapter-only timings are not reported as request
+latencies.
