@@ -147,6 +147,12 @@ Request-level observations will remain available in raw CSV files.
 Statistical comparisons will use independent run-level summaries rather
 than treating every request as an independent experimental replicate.
 
+Run-level latency summaries use successful requests only. P50, P95, and
+P99 use linear interpolation with the Hyndman-Fan type 7 definition.
+Successful throughput is the number of correct operation outcomes divided
+by measured wall-clock duration. Completed-request throughput uses HTTP
+responses received within the same boundary and excludes transport failures.
+
 ## 10. Resource and storage metrics
 
 The following system-level measurements will be collected:
