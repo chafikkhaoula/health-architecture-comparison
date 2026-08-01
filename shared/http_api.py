@@ -90,21 +90,31 @@ def _attach_receipt_headers(
         "tx_id",
         "txId",
     )
+    commit_status = _receipt_value(
+        receipt,
+        "commit_status",
+        "commitStatus",
+        "status",
+    )
     validation_code = _receipt_value(
         receipt,
         "validation_code",
         "validationCode",
-        "commit_status",
-        "commitStatus",
-        "status",
     )
 
     if transaction_id is not None:
         response.headers["X-Fabric-Tx-Id"] = str(transaction_id)
 
-    if validation_code is not None:
+    if commit_status is None and validation_code is not None:
+        commit_status = (
+            "VALID"
+            if str(validation_code) == "0"
+            else validation_code
+        )
+
+    if commit_status is not None:
         response.headers["X-Fabric-Validation-Code"] = str(
-            validation_code
+            commit_status
         )
 
 
