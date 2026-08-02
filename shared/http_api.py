@@ -101,6 +101,11 @@ def _attach_receipt_headers(
         "validation_code",
         "validationCode",
     )
+    block_number = _receipt_value(
+        receipt,
+        "block_number",
+        "blockNumber",
+    )
 
     if transaction_id is not None:
         response.headers["X-Fabric-Tx-Id"] = str(transaction_id)
@@ -116,6 +121,9 @@ def _attach_receipt_headers(
         response.headers["X-Fabric-Validation-Code"] = str(
             commit_status
         )
+
+    if block_number is not None:
+        response.headers["X-Fabric-Block-Number"] = str(block_number)
 
 
 def _error_handler(

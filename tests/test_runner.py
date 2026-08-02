@@ -97,6 +97,7 @@ def test_runner_bounds_concurrency_and_summarizes() -> None:
                 headers={
                     "X-Fabric-Tx-Id": "tx-test",
                     "X-Fabric-Validation-Code": "VALID",
+                    "X-Fabric-Block-Number": "9",
                 },
             )
 
@@ -123,6 +124,7 @@ def test_runner_bounds_concurrency_and_summarizes() -> None:
         item.fabric_transaction_id == "tx-test"
         for item in observations
     )
+    assert all(item.fabric_block_number == 9 for item in observations)
     assert summary.successful_requests == 4
     assert summary.failed_requests == 0
     assert summary.success_rate == 1.0

@@ -66,6 +66,7 @@ def _observation(context, request) -> RequestObservation:
         error_message=None,
         fabric_transaction_id=None,
         fabric_commit_validation_status=None,
+        fabric_block_number=None,
         late_status=None,
         started_at_utc="2026-08-01T00:00:00+00:00",
     )

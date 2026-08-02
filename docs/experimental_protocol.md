@@ -90,7 +90,7 @@ The two backends must expose equivalent request and response semantics.
 
 ## 7. Workload design
 
-The candidate final workload matrix is:
+The final workload matrix, locked after the scaling pilot, is:
 
 | Parameter | Values |
 |---|---|
@@ -100,13 +100,10 @@ The candidate final workload matrix is:
 | Warm-up | One unmeasured run per configuration |
 | Random seed | Fixed and recorded |
 
-A pilot experiment will first validate correctness, estimate execution
-time, and identify technical failures. Pilot observations will not be
-combined with final measurements.
-
-The final workload matrix will be locked after the pilot and before
-collecting final results. It will not be changed in response to the
-observed performance of either architecture.
+The completed pilot validated correctness, estimated execution time, and
+identified no benchmark failure. Pilot observations are not combined with
+final measurements. The locked matrix will not be changed in response to
+the observed performance of either architecture.
 
 Each paired repetition will use unique identifiers while preserving the
 same input resources, authorization rules, and operation order across
@@ -618,9 +615,47 @@ map consistently across architectures:
 `AccessDeniedError` to 403. Backend failures map to 503.
 
 When available, Fabric write metadata is returned through the
-`X-Fabric-Tx-Id` and `X-Fabric-Validation-Code` response headers.
+`X-Fabric-Tx-Id`, `X-Fabric-Validation-Code`, and
+`X-Fabric-Block-Number` response headers. Channel-height boundaries are
+captured immediately before and after each Fabric operation run. These
+fields permit observed measured transactions to be grouped by block
+without adding ledger queries to the request-latency boundary.
 
 Measured latency starts immediately before the benchmark client sends
 the HTTP request and ends only after the complete response body has
 been received. Adapter-only timings are not reported as request
 latencies.
+
+## Final-runner execution and recovery binding
+
+The official runner is `benchmark/official_final.sh`; `benchmark/final.py`
+implements the locked matrix and `benchmark/final_environment.sh` owns the
+isolated reset/start/stop boundary. For every architecture member of a
+paired repetition, the runner starts a clean deployment, executes one
+unmeasured run per operation, destroys that state, then starts a second
+clean deployment for measurement. The warm-up state is therefore absent
+from every measured run.
+
+Before the locked matrix, `benchmark/final_smoke.sh` executes the same
+orchestration and artifact-verification path with 10 operations, concurrency
+2, and one repetition. Its manifest marks it as an orchestration smoke and
+its artifacts remain under `results/pilot`; they are excluded from every
+final analysis.
+
+Traditional and Fabric form one atomic paired attempt. A checkpoint is
+written before every reset and architecture phase. If execution ends before
+both members complete, the attempt is retained and marked technically
+invalid on resume; a new attempt identifier is allocated and both members
+are repeated with the same planned seed. Completed pairs are never rerun.
+
+Docker container statistics and the managed HTTP API process are sampled
+with the same one-second method for both architectures. Each operation run
+contains an idle-baseline sample and at least one sample collected while the
+measured request boundary is active. Persistent component sizes are recorded
+after the untimed durable-state validation.
+
+The untimed validation retrieves every stored payload, verifies its
+authoritative and observed SHA-256 values, and reconstructs the expected
+ordered `OP1`, `OP3`, and `OP4` audit events. Raw architecture failures stay
+in the result set; only reset, input, client, monitor, or accidental host
+failures invalidate a paired attempt.

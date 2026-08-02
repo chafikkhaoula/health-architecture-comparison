@@ -180,41 +180,102 @@ require_file "$PROJECT_ROOT/architecture-fabric/app/main.py"
 
 case "${1:-}" in
   start)
-    start_one \
-      traditional \
-      18000 \
-      "$PROJECT_ROOT/architecture-traditional/.env" \
-      "$PROJECT_ROOT/architecture-traditional"
-    if ! start_one \
-      fabric \
-      18001 \
-      "$PROJECT_ROOT/architecture-fabric/.env" \
-      "$PROJECT_ROOT/architecture-fabric"; then
-      stop_one \
-        traditional \
-        "$PROJECT_ROOT/architecture-traditional" || true
-      exit 1
-    fi
+    case "${2:-all}" in
+      traditional)
+        start_one \
+          traditional \
+          18000 \
+          "$PROJECT_ROOT/architecture-traditional/.env" \
+          "$PROJECT_ROOT/architecture-traditional"
+        ;;
+      fabric)
+        start_one \
+          fabric \
+          18001 \
+          "$PROJECT_ROOT/architecture-fabric/.env" \
+          "$PROJECT_ROOT/architecture-fabric"
+        ;;
+      all)
+        start_one \
+          traditional \
+          18000 \
+          "$PROJECT_ROOT/architecture-traditional/.env" \
+          "$PROJECT_ROOT/architecture-traditional"
+        if ! start_one \
+          fabric \
+          18001 \
+          "$PROJECT_ROOT/architecture-fabric/.env" \
+          "$PROJECT_ROOT/architecture-fabric"; then
+          stop_one \
+            traditional \
+            "$PROJECT_ROOT/architecture-traditional" || true
+          exit 1
+        fi
+        ;;
+      *)
+        echo "Architecture must be traditional or fabric" >&2
+        exit 2
+        ;;
+    esac
     ;;
   stop)
-    stop_one \
-      traditional \
-      "$PROJECT_ROOT/architecture-traditional"
-    stop_one \
-      fabric \
-      "$PROJECT_ROOT/architecture-fabric"
+    case "${2:-all}" in
+      traditional)
+        stop_one \
+          traditional \
+          "$PROJECT_ROOT/architecture-traditional"
+        ;;
+      fabric)
+        stop_one \
+          fabric \
+          "$PROJECT_ROOT/architecture-fabric"
+        ;;
+      all)
+        stop_one \
+          traditional \
+          "$PROJECT_ROOT/architecture-traditional"
+        stop_one \
+          fabric \
+          "$PROJECT_ROOT/architecture-fabric"
+        ;;
+      *)
+        echo "Architecture must be traditional or fabric" >&2
+        exit 2
+        ;;
+    esac
     ;;
   status)
-    status_one traditional 18000
-    status_one fabric 18001
+    case "${2:-all}" in
+      traditional) status_one traditional 18000 ;;
+      fabric) status_one fabric 18001 ;;
+      all)
+        status_one traditional 18000
+        status_one fabric 18001
+        ;;
+      *)
+        echo "Architecture must be traditional or fabric" >&2
+        exit 2
+        ;;
+    esac
     ;;
   logs)
-    tail -n 80 \
-      "$RUNTIME_DIR/traditional.log" \
-      "$RUNTIME_DIR/fabric.log"
+    case "${2:-all}" in
+      traditional|fabric)
+        tail -n 200 "$RUNTIME_DIR/${2}.log"
+        ;;
+      all)
+        tail -n 200 \
+          "$RUNTIME_DIR/traditional.log" \
+          "$RUNTIME_DIR/fabric.log"
+        ;;
+      *)
+        echo "Architecture must be traditional or fabric" >&2
+        exit 2
+        ;;
+    esac
     ;;
   *)
-    echo "Usage: benchmark/services.sh {start|stop|status|logs}" >&2
+    echo "Usage: benchmark/services.sh {start|stop|status|logs} [traditional|fabric]" >&2
     exit 2
     ;;
 esac

@@ -167,6 +167,7 @@ class RequestObservation:
     error_message: str | None
     fabric_transaction_id: str | None
     fabric_commit_validation_status: str | None
+    fabric_block_number: int | None
     late_status: str | None
     started_at_utc: str
 
@@ -270,6 +271,7 @@ def _base_observation(
     error_message: str | None = None,
     transaction_id: str | None = None,
     validation_status: str | None = None,
+    block_number: int | None = None,
 ) -> RequestObservation:
     return RequestObservation(
         batch_id=context.batch_id,
@@ -298,6 +300,7 @@ def _base_observation(
         error_message=error_message,
         fabric_transaction_id=transaction_id,
         fabric_commit_validation_status=validation_status,
+        fabric_block_number=block_number,
         late_status=None,
         started_at_utc=started_at.isoformat(),
     )
@@ -339,6 +342,15 @@ async def _execute_request(
     validation_status = response.headers.get(
         "X-Fabric-Validation-Code"
     )
+    raw_block_number = response.headers.get("X-Fabric-Block-Number")
+    try:
+        block_number = (
+            int(raw_block_number)
+            if raw_block_number is not None
+            else None
+        )
+    except ValueError:
+        block_number = None
 
     if response.status_code != request.expected_http_status:
         classification = (
@@ -359,6 +371,7 @@ async def _execute_request(
             error_message=_redact_error(response.text),
             transaction_id=transaction_id,
             validation_status=validation_status,
+            block_number=block_number,
         )
 
     if (
@@ -367,6 +380,8 @@ async def _execute_request(
         and (
             transaction_id is None
             or validation_status != "VALID"
+            or block_number is None
+            or block_number < 0
         )
     ):
         return _base_observation(
@@ -389,6 +404,7 @@ async def _execute_request(
             ),
             transaction_id=transaction_id,
             validation_status=validation_status,
+            block_number=block_number,
         )
 
     try:
@@ -407,6 +423,7 @@ async def _execute_request(
             error_message=_redact_error(str(exc)),
             transaction_id=transaction_id,
             validation_status=validation_status,
+            block_number=block_number,
         )
 
     return _base_observation(
@@ -420,6 +437,7 @@ async def _execute_request(
         failure_ms=None,
         transaction_id=transaction_id,
         validation_status=validation_status,
+        block_number=block_number,
     )
 
 
