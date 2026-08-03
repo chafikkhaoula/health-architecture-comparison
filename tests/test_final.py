@@ -7,6 +7,7 @@ from benchmark.final import (
     FinalConfig,
     _namespace,
     _pair_key,
+    _prime_if_fabric,
     architecture_order,
 )
 
@@ -77,3 +78,35 @@ def test_final_config_rejects_concurrency_above_smallest_workload(
             output_root=tmp_path,
             driver=tmp_path / "driver.sh",
         )
+
+
+def test_fabric_is_primed_but_traditional_is_not(tmp_path: Path) -> None:
+    class Driver:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, Path]] = []
+
+        def run(
+            self,
+            action: str,
+            architecture: str,
+            *,
+            log_path: Path,
+        ) -> str:
+            self.calls.append((action, architecture, log_path))
+            return ""
+
+    driver = Driver()
+    log_path = tmp_path / "environment.log"
+
+    _prime_if_fabric(  # type: ignore[arg-type]
+        driver,
+        "traditional",
+        log_path=log_path,
+    )
+    _prime_if_fabric(  # type: ignore[arg-type]
+        driver,
+        "fabric",
+        log_path=log_path,
+    )
+
+    assert driver.calls == [("prime", "fabric", log_path)]

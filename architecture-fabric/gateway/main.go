@@ -107,6 +107,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", bridge.health)
 	mux.HandleFunc("POST /v1/evaluate", bridge.evaluate)
+	mux.HandleFunc("POST /v1/endorse", bridge.endorse)
 	mux.HandleFunc("POST /v1/submit", bridge.submit)
 
 	httpServer := &http.Server{
@@ -169,6 +170,40 @@ func (server *server) evaluate(
 	writeJSON(writer, http.StatusOK, successResponse{
 		Result:        normalizedResult(result),
 		TransactionID: proposal.TransactionID(),
+	})
+}
+
+func (server *server) endorse(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	input, ok := decodeRequest(writer, request)
+	if !ok {
+		return
+	}
+	options := proposalOptions(input)
+	proposal, err := server.contract.NewProposal(
+		input.Function,
+		options...,
+	)
+	if err != nil {
+		writeGatewayError(writer, "proposal", "", err)
+		return
+	}
+	transactionID := proposal.TransactionID()
+	transaction, err := proposal.Endorse()
+	if err != nil {
+		writeGatewayError(
+			writer,
+			"endorse",
+			transactionID,
+			err,
+		)
+		return
+	}
+	writeJSON(writer, http.StatusOK, successResponse{
+		Result:        normalizedResult(transaction.Result()),
+		TransactionID: transactionID,
 	})
 }
 

@@ -9,6 +9,7 @@ import os
 import platform
 import re
 import subprocess
+import sys
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, fields
@@ -194,7 +195,7 @@ def _namespace(
         (
             f"{batch_id}:{workload_size}:{concurrency}:"
             f"{repetition}:{attempt}:{phase}"
-        ).encode("utf-8")
+        ).encode()
     ).hexdigest()[:12]
     return f"f{phase[0]}{digest}"
 
@@ -413,6 +414,7 @@ class EnvironmentDriver:
             command.append(architecture)
         completed = subprocess.run(
             command,
+            check=False,
             capture_output=True,
             text=True,
         )
@@ -432,6 +434,16 @@ class EnvironmentDriver:
 
     def height(self, *, log_path: Path) -> int:
         return int(self.run("height", "fabric", log_path=log_path))
+
+
+def _prime_if_fabric(
+    driver: EnvironmentDriver,
+    architecture: str,
+    *,
+    log_path: Path,
+) -> None:
+    if architecture == "fabric":
+        driver.run("prime", architecture, log_path=log_path)
 
 
 class BatchCheckpoint:
@@ -981,6 +993,15 @@ async def _run_pair(
                 architecture,
                 log_path=environment_log,
             )
+            if architecture == "fabric":
+                checkpoint.update_phase(
+                    pair_key, "fabric_warmup_readiness"
+                )
+            _prime_if_fabric(
+                driver,
+                architecture,
+                log_path=environment_log,
+            )
             await _warmup(
                 config,
                 architecture=architecture,
@@ -1001,11 +1022,15 @@ async def _run_pair(
                 log_path=environment_log,
             )
             if architecture == "fabric":
-                driver.run(
-                    "prime",
-                    architecture,
-                    log_path=environment_log,
+                checkpoint.update_phase(
+                    pair_key, "fabric_measured_readiness"
                 )
+            _prime_if_fabric(
+                driver,
+                architecture,
+                log_path=environment_log,
+            )
+            if architecture == "fabric":
                 live_channel_config = json.loads(
                     driver.run(
                         "channel-config",
@@ -1057,12 +1082,24 @@ async def _run_pair(
                     driver.run("logs", architecture) + "\n",
                     encoding="utf-8",
                 )
-            except BaseException:
-                pass
+            except (BenchmarkInfrastructureError, OSError) as cleanup_error:
+                print(
+                    "cleanup warning: could not capture "
+                    f"{architecture} failure logs: "
+                    f"{type(cleanup_error).__name__}: {cleanup_error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
         try:
             driver.run("stop-all")
-        except BaseException:
-            pass
+        except (BenchmarkInfrastructureError, OSError) as cleanup_error:
+            print(
+                "cleanup warning: could not stop all environments after "
+                f"pair failure: {type(cleanup_error).__name__}: "
+                f"{cleanup_error}",
+                file=sys.stderr,
+                flush=True,
+            )
         checkpoint.invalidate_attempt(
             pair_key,
             reason_code="benchmark_infrastructure_failure",
@@ -1491,8 +1528,14 @@ async def run_final(config: FinalConfig) -> Path:
     finally:
         try:
             driver.run("stop-all")
-        except BaseException:
-            pass
+        except (BenchmarkInfrastructureError, OSError) as cleanup_error:
+            print(
+                "cleanup warning: could not perform final environment "
+                f"shutdown: {type(cleanup_error).__name__}: "
+                f"{cleanup_error}",
+                file=sys.stderr,
+                flush=True,
+            )
 
     aggregate_batch(checkpoint)
     checkpoint.progress["status"] = "completed"

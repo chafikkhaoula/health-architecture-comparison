@@ -146,6 +146,7 @@ PY
 
 prime_fabric_chaincode() {
   local gateway_port
+  local readiness_payload
   gateway_port="$(
     set -a
     # shellcheck disable=SC1090
@@ -153,13 +154,15 @@ prime_fabric_chaincode() {
     set +a
     printf '%s' "${GATEWAY_BRIDGE_PORT:-18081}"
   )"
-  curl --silent --show-error --max-time 30 \
+  readiness_payload='{"function":"GetAccessDecision","arguments":["Patient","benchmark-prime-missing","benchmark-prime-user","benchmark-prime-org"]}'
+
+  curl --fail --silent --show-error --max-time 30 \
     -H 'Content-Type: application/json' \
-    --data '{"function":"GetAudit","arguments":["Patient","benchmark-prime-missing"]}' \
+    --data "$readiness_payload" \
     "http://127.0.0.1:$gateway_port/v1/evaluate" \
     >/dev/null
 
-  # The Gateway evaluate path warms Org1. Issue the same read-only miss
+  # The Gateway evaluate path warms Org1. Issue the same read-only probe
   # directly to Org2 so both endorsement-side chaincode containers are
   # already resident before the measured boundary.
   # shellcheck source=../architecture-fabric/scripts/common.sh
@@ -168,8 +171,8 @@ prime_fabric_chaincode() {
   FABRIC_CFG_PATH="$FABRIC_CFG_PATH" "$PEER" chaincode query \
     --channelID "$CHANNEL_NAME" \
     --name "$CHAINCODE_NAME" \
-    --ctor '{"Args":["GetAudit","Patient","benchmark-prime-missing"]}' \
-    >/dev/null 2>&1 || true
+    --ctor '{"Args":["GetAccessDecision","Patient","benchmark-prime-missing","benchmark-prime-user","benchmark-prime-org"]}' \
+    >/dev/null
 
   for attempt in $(seq 1 30); do
     chaincode_count="$(
@@ -180,12 +183,31 @@ prime_fabric_chaincode() {
     )"
     if [ "$chaincode_count" -ge 2 ]; then
       echo "Both Fabric chaincode containers are warm"
+      break
+    fi
+    if [ "$attempt" -eq 30 ]; then
+      echo "Fabric chaincode containers did not become ready" >&2
+      return 1
+    fi
+    sleep 1
+  done
+
+  # Endorse without submitting. This verifies that Gateway discovery can
+  # assemble the AND(Org1, Org2) endorsement plan without adding a block or
+  # changing world state before the experimental boundary.
+  for attempt in $(seq 1 60); do
+    if curl --fail --silent --show-error --max-time 5 \
+      -H 'Content-Type: application/json' \
+      --data "$readiness_payload" \
+      "http://127.0.0.1:$gateway_port/v1/endorse" \
+      >/dev/null 2>&1; then
+      echo "Fabric endorsement discovery is ready"
       return
     fi
     sleep 1
   done
-  echo "Fabric chaincode container did not start" >&2
-  exit 1
+  echo "Fabric endorsement discovery did not become ready" >&2
+  return 1
 }
 
 capture_logs() {

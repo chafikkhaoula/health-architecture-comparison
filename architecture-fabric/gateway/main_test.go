@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -59,5 +61,25 @@ func TestNormalizedResult(t *testing.T) {
 	if got := string(normalizedResult([]byte("plain"))); got !=
 		`"plain"` {
 		t.Fatalf("plain result = %s, want quoted JSON string", got)
+	}
+}
+
+func TestEndorseRejectsInvalidRequestBeforeUsingGateway(t *testing.T) {
+	server := &server{}
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/endorse",
+		bytes.NewBufferString(`{"function":""}`),
+	)
+	recorder := httptest.NewRecorder()
+
+	server.endorse(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"endorse invalid request status = %d, want %d",
+			recorder.Code,
+			http.StatusBadRequest,
+		)
 	}
 }
