@@ -157,9 +157,11 @@ def docker_container_ids(architecture: str) -> tuple[str, ...]:
             "label=com.docker.compose.project="
             f"health-arch-{architecture}"
         ),
+        "--filter",
+        "status=running",
     ]
     completed = subprocess.run(
-        ("docker", "ps", "--all", *filters, "--format", "{{.ID}}"),
+        ("docker", "ps", *filters, "--format", "{{.ID}}"),
         check=True,
         capture_output=True,
         text=True,
@@ -174,9 +176,10 @@ def docker_container_ids(architecture: str) -> tuple[str, ...]:
             (
                 "docker",
                 "ps",
-                "--all",
                 "--filter",
                 "network=health-arch-fabric-net",
+                "--filter",
+                "status=running",
                 "--format",
                 "{{.ID}}",
             ),

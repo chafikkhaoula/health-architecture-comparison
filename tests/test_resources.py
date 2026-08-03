@@ -4,6 +4,7 @@ import json
 from benchmark.resources import (
     DockerStatsMonitor,
     ResourceContext,
+    docker_container_ids,
     parse_docker_stats,
     parse_size,
 )
@@ -56,6 +57,32 @@ def test_parse_docker_stats_preserves_numeric_units() -> None:
     assert sample.network_input_bytes == 1200
     assert sample.block_output_bytes == 6_000_000
     assert sample.pids == 17
+
+
+def test_docker_container_ids_only_discovers_running_containers(
+    monkeypatch,
+) -> None:
+    calls: list[tuple[str, ...]] = []
+    outputs = iter(("compose-id\nshared-id\n", "chaincode-id\nshared-id\n"))
+
+    def fake_run(args, **_kwargs):
+        calls.append(tuple(args))
+        return type(
+            "Completed",
+            (),
+            {"stdout": next(outputs)},
+        )()
+
+    monkeypatch.setattr("benchmark.resources.subprocess.run", fake_run)
+
+    assert docker_container_ids("fabric") == (
+        "chaincode-id",
+        "compose-id",
+        "shared-id",
+    )
+    assert len(calls) == 2
+    assert all("--all" not in call for call in calls)
+    assert all("status=running" in call for call in calls)
 
 
 class _FakeStdout:
