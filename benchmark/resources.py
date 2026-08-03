@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter_ns
+from typing import Self
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,7 +233,7 @@ class DockerStatsMonitor:
         self._last_process_sample_ns: int | None = None
         self._process_cpu_state: dict[int, tuple[int, int]] = {}
 
-    async def __aenter__(self) -> DockerStatsMonitor:
+    async def __aenter__(self) -> Self:
         self._process = await asyncio.create_subprocess_exec(
             "docker",
             "stats",
@@ -243,25 +244,40 @@ class DockerStatsMonitor:
             stderr=asyncio.subprocess.PIPE,
         )
         self._reader = asyncio.create_task(self._read())
-        await self._wait_for_ids(self._baseline_ids, "idle baseline")
+        try:
+            await self._wait_for_ids(self._baseline_ids, "idle baseline")
+        except BaseException:
+            await self._stop()
+            raise
         return self
 
     async def __aexit__(self, *_: object) -> None:
-        process = self._process
-        if process is not None and process.returncode is None:
-            process.terminate()
-            try:
-                await asyncio.wait_for(process.wait(), timeout=5.0)
-            except TimeoutError:
-                process.kill()
-                await process.wait()
-        reader = self._reader
-        if reader is not None:
-            await reader
+        await self._stop()
         if self._reader_error is not None:
             raise RuntimeError("Docker resource monitor failed") from (
                 self._reader_error
             )
+
+    async def _stop(self) -> None:
+        process = self._process
+        if process is not None and process.returncode is None:
+            try:
+                process.terminate()
+            except ProcessLookupError:
+                pass
+            try:
+                await asyncio.wait_for(process.wait(), timeout=5.0)
+            except TimeoutError:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+                await process.wait()
+        reader = self._reader
+        if reader is not None:
+            await reader
+        self._process = None
+        self._reader = None
 
     def mark_measurement_started(self) -> None:
         self._measurement_started_ns = perf_counter_ns()
@@ -304,6 +320,8 @@ class DockerStatsMonitor:
                 line = await process.stdout.readline()
                 if not line:
                     break
+                if not line.strip():
+                    continue
                 sampled_ns = perf_counter_ns()
                 phase = (
                     "idle_baseline"
@@ -332,7 +350,14 @@ class DockerStatsMonitor:
                     target=target,
                 )
                 self._sample_event.set()
-        except BaseException as exc:
+        except (
+            IndexError,
+            KeyError,
+            OSError,
+            TypeError,
+            UnicodeError,
+            ValueError,
+        ) as exc:
             self._reader_error = exc
             self._sample_event.set()
 
@@ -491,6 +516,7 @@ class DockerStatsMonitor:
                     "{{.State.Running}} {{.Name}}",
                     identifier,
                 ),
+                check=False,
                 capture_output=True,
                 text=True,
             )
@@ -554,6 +580,7 @@ def capture_storage(
                 "--format",
                 "{{.ID}}",
             ),
+            check=False,
             capture_output=True,
             text=True,
         )
@@ -588,6 +615,7 @@ def capture_storage(
         identifier = identifiers[0]
         completed = subprocess.run(
             ("docker", "exec", identifier, "du", "-sk", path),
+            check=False,
             capture_output=True,
             text=True,
         )

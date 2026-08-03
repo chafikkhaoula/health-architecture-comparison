@@ -1,4 +1,7 @@
+import asyncio
+
 from benchmark.resources import (
+    DockerStatsMonitor,
     ResourceContext,
     parse_docker_stats,
     parse_size,
@@ -52,3 +55,85 @@ def test_parse_docker_stats_preserves_numeric_units() -> None:
     assert sample.network_input_bytes == 1200
     assert sample.block_output_bytes == 6_000_000
     assert sample.pids == 17
+
+
+class _FakeStdout:
+    def __init__(self, lines: list[bytes]) -> None:
+        self._lines = iter(lines)
+
+    async def readline(self) -> bytes:
+        return next(self._lines, b"")
+
+
+class _FakeProcess:
+    def __init__(self, lines: list[bytes]) -> None:
+        self.stdout = _FakeStdout(lines)
+
+
+def test_docker_stats_monitor_ignores_blank_stream_frames() -> None:
+    payload = b"""{
+      "ID":"abc123",
+      "Name":"peer0",
+      "CPUPerc":"1%",
+      "MemUsage":"1MiB / 2GiB",
+      "MemPerc":"0.1%",
+      "NetIO":"0B / 0B",
+      "BlockIO":"0B / 0B",
+      "PIDs":"1"
+    }\n"""
+    monitor = DockerStatsMonitor(
+        _context(),
+        ("abc123",),
+        sample_interval_seconds=1,
+    )
+    monitor._process = _FakeProcess(  # type: ignore[assignment]
+        [b"\n", b" \r\n", payload]
+    )
+
+    asyncio.run(monitor._read())
+
+    assert monitor._reader_error is None
+    assert len(monitor.samples) == 1
+    assert monitor.samples[0].container_id == "abc123"
+    assert monitor._baseline_ids == {"abc123"}
+
+
+def test_docker_stats_monitor_cleans_up_when_enter_fails(
+    monkeypatch,
+) -> None:
+    monitor = DockerStatsMonitor(
+        _context(),
+        ("abc123",),
+        sample_interval_seconds=1,
+    )
+    stopped = False
+
+    async def fake_create_subprocess_exec(*_args, **_kwargs):
+        return _FakeProcess([])
+
+    async def fail_wait(*_args, **_kwargs) -> None:
+        raise RuntimeError("baseline failed")
+
+    async def record_stop() -> None:
+        nonlocal stopped
+        stopped = True
+
+    monkeypatch.setattr(
+        asyncio,
+        "create_subprocess_exec",
+        fake_create_subprocess_exec,
+    )
+    monkeypatch.setattr(monitor, "_wait_for_ids", fail_wait)
+    monkeypatch.setattr(monitor, "_stop", record_stop)
+
+    async def enter() -> None:
+        try:
+            await monitor.__aenter__()
+        except RuntimeError as exc:
+            assert str(exc) == "baseline failed"
+        else:
+            raise AssertionError("monitor entry unexpectedly succeeded")
+
+    asyncio.run(enter())
+
+    assert stopped is True
