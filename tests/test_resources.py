@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from benchmark.resources import (
     DockerStatsMonitor,
@@ -70,7 +71,7 @@ class _FakeProcess:
         self.stdout = _FakeStdout(lines)
 
 
-def test_docker_stats_monitor_ignores_blank_stream_frames() -> None:
+def test_docker_stats_monitor_ignores_blank_and_ansi_stream_frames() -> None:
     payload = b"""{
       "ID":"abc123",
       "Name":"peer0",
@@ -86,8 +87,11 @@ def test_docker_stats_monitor_ignores_blank_stream_frames() -> None:
         ("abc123",),
         sample_interval_seconds=1,
     )
+    framed_payload = (
+        b"\x1b[J\x1b[H" + payload.rstrip(b"\n") + b"\x1b[K\n"
+    )
     monitor._process = _FakeProcess(  # type: ignore[assignment]
-        [b"\n", b" \r\n", payload]
+        [b"\n", b" \r\n", b"\x1b[K\n", framed_payload]
     )
 
     asyncio.run(monitor._read())
@@ -96,6 +100,23 @@ def test_docker_stats_monitor_ignores_blank_stream_frames() -> None:
     assert len(monitor.samples) == 1
     assert monitor.samples[0].container_id == "abc123"
     assert monitor._baseline_ids == {"abc123"}
+
+
+def test_docker_stats_monitor_rejects_malformed_non_control_frame() -> None:
+    monitor = DockerStatsMonitor(
+        _context(),
+        ("abc123",),
+        sample_interval_seconds=1,
+    )
+    monitor._process = _FakeProcess(  # type: ignore[assignment]
+        [b"\x1b[Hnot-json\x1b[K\n"]
+    )
+
+    asyncio.run(monitor._read())
+
+    assert isinstance(monitor._reader_error, json.JSONDecodeError)
+    assert monitor.samples == []
+    assert monitor._baseline_ids == set()
 
 
 def test_docker_stats_monitor_cleans_up_when_enter_fails(

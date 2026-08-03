@@ -77,6 +77,7 @@ _SIZE_RE = re.compile(
     r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([kmgtpe]?i?b)\s*$",
     re.IGNORECASE,
 )
+_ANSI_CSI_RE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
 _SIZE_FACTORS = {
     "b": 1,
     "kb": 1000,
@@ -320,7 +321,8 @@ class DockerStatsMonitor:
                 line = await process.stdout.readline()
                 if not line:
                     break
-                if not line.strip():
+                payload = _ANSI_CSI_RE.sub(b"", line).strip()
+                if not payload:
                     continue
                 sampled_ns = perf_counter_ns()
                 phase = (
@@ -330,7 +332,7 @@ class DockerStatsMonitor:
                     else "measured"
                 )
                 sample = parse_docker_stats(
-                    line.decode("utf-8"),
+                    payload.decode("utf-8"),
                     self.context,
                     sample_phase=phase,
                     sampled_at_utc=datetime.now(timezone.utc).isoformat(),
