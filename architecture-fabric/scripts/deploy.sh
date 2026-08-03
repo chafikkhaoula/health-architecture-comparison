@@ -56,6 +56,15 @@ compose up -d orderer peer0org1 peer0org2 postgres
 
 echo "Waiting for orderer and peers"
 for attempt in $(seq 1 60); do
+  orderer_ready=false
+  if "$OSNADMIN" channel list \
+    --orderer-address "127.0.0.1:$ORDERER_ADMIN_PORT" \
+    --ca-file "$ORDERER_TLS_CA" \
+    --client-cert "$ORDERER_TLS_CERT" \
+    --client-key "$ORDERER_TLS_KEY" \
+    >/dev/null 2>&1; then
+    orderer_ready=true
+  fi
   use_org1
   org1_ready=false
   if FABRIC_CFG_PATH="$FABRIC_CFG_PATH" "$PEER" node status \
@@ -68,12 +77,14 @@ for attempt in $(seq 1 60); do
     >/dev/null 2>&1; then
     org2_ready=true
   fi
-  if [ "$org1_ready" = true ] && [ "$org2_ready" = true ]; then
+  if [ "$orderer_ready" = true ] && \
+    [ "$org1_ready" = true ] && \
+    [ "$org2_ready" = true ]; then
     break
   fi
   if [ "$attempt" -eq 60 ]; then
     compose logs --no-color orderer peer0org1 peer0org2
-    echo "Fabric nodes did not become ready." >&2
+    echo "Fabric orderer and peers did not become ready." >&2
     exit 1
   fi
   sleep 2
