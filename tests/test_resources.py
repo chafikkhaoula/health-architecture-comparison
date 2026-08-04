@@ -98,6 +98,28 @@ class _FakeProcess:
         self.stdout = _FakeStdout(lines)
 
 
+def test_docker_stats_monitor_stop_cancels_stalled_reader() -> None:
+    monitor = DockerStatsMonitor(
+        _context(),
+        ("abc123",),
+        sample_interval_seconds=1,
+    )
+
+    async def exercise() -> None:
+        reader_started = asyncio.Event()
+
+        async def stalled_reader() -> None:
+            reader_started.set()
+            await asyncio.Event().wait()
+
+        monitor._reader = asyncio.create_task(stalled_reader())
+        await reader_started.wait()
+        await asyncio.wait_for(monitor._stop(), timeout=0.5)
+        assert monitor._reader is None
+
+    asyncio.run(exercise())
+
+
 def test_docker_stats_monitor_ignores_blank_and_ansi_stream_frames() -> None:
     payload = b"""{
       "ID":"abc123",

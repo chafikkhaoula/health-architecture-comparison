@@ -245,7 +245,7 @@ class DockerStatsMonitor:
             "{{json .}}",
             *self.container_ids,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
         )
         self._reader = asyncio.create_task(self._read())
         try:
@@ -276,10 +276,17 @@ class DockerStatsMonitor:
                     process.kill()
                 except ProcessLookupError:
                     pass
-                await process.wait()
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=5.0)
+                except TimeoutError as exc:
+                    raise RuntimeError(
+                        "Docker resource monitor did not stop after SIGKILL"
+                    ) from exc
         reader = self._reader
         if reader is not None:
-            await reader
+            if not reader.done():
+                reader.cancel()
+            await asyncio.gather(reader, return_exceptions=True)
         self._process = None
         self._reader = None
 
