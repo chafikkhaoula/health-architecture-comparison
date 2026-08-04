@@ -67,13 +67,15 @@ for attempt in $(seq 1 60); do
   fi
   use_org1
   org1_ready=false
-  if FABRIC_CFG_PATH="$FABRIC_CFG_PATH" "$PEER" node status \
+  # Exercise the peer channel/endorser path used by the next operation.
+  # `peer node status` can succeed before channel services finish starting.
+  if FABRIC_CFG_PATH="$FABRIC_CFG_PATH" "$PEER" channel list \
     >/dev/null 2>&1; then
     org1_ready=true
   fi
   use_org2
   org2_ready=false
-  if FABRIC_CFG_PATH="$FABRIC_CFG_PATH" "$PEER" node status \
+  if FABRIC_CFG_PATH="$FABRIC_CFG_PATH" "$PEER" channel list \
     >/dev/null 2>&1; then
     org2_ready=true
   fi
