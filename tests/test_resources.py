@@ -28,6 +28,7 @@ def test_parse_size_supports_binary_and_decimal_units() -> None:
     assert parse_size("1.5MiB") == 1_572_864
     assert parse_size("2 GB") == 2_000_000_000
     assert parse_size("0B") == 0
+    assert parse_size(" 1e+03kB") == 1_000_000
 
 
 def test_parse_docker_stats_preserves_numeric_units() -> None:

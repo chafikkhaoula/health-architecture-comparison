@@ -74,7 +74,8 @@ class StorageObservation:
 
 
 _SIZE_RE = re.compile(
-    r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([kmgtpe]?i?b)\s*$",
+    r"^\s*([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)"
+    r"\s*([kmgtpe]?i?b)\s*$",
     re.IGNORECASE,
 )
 _ANSI_CSI_RE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
