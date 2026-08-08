@@ -53,6 +53,14 @@ case "$mode" in
     batch_id="$2"
     resume_flag=(--resume)
     ;;
+  resume-monitoring)
+    [ -n "${2:-}" ] || {
+      echo "Usage: benchmark/official_final.sh resume-monitoring BATCH_ID" >&2
+      exit 2
+    }
+    batch_id="$2"
+    resume_flag=(--resume --monitoring-only-continuation)
+    ;;
   verify)
     [ -n "${2:-}" ] || {
       echo "Usage: benchmark/official_final.sh verify BATCH_ID" >&2
@@ -65,7 +73,7 @@ case "$mode" in
     exit 0
     ;;
   *)
-    echo "Usage: benchmark/official_final.sh {start [BATCH_ID]|resume BATCH_ID|verify BATCH_ID}" >&2
+    echo "Usage: benchmark/official_final.sh {start [BATCH_ID]|resume BATCH_ID|resume-monitoring BATCH_ID|verify BATCH_ID}" >&2
     exit 2
     ;;
 esac

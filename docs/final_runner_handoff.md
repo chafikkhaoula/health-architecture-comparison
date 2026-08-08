@@ -77,6 +77,20 @@ in its attempt directory, is appended to `exclusions.csv`, and is repeated in
 full under a new attempt identifier. The original raw evidence is never
 overwritten.
 
+If an infrastructure-only monitoring defect requires a committed fix after a
+batch has started, use the restricted continuation mode:
+
+```bash
+benchmark/official_final.sh resume-monitoring FINAL_BATCH_ID
+```
+
+This mode accepts only the allowlisted monitoring, orchestration,
+documentation, and regression-test paths. It preserves the original batch
+commit, records the continuation commit, changed paths, diff hash, and source
+hashes in `manifest.json`, and tags every attempt with its execution commit and
+provenance segment. Completed pairs are skipped exactly as in an ordinary
+resume.
+
 At normal completion the runner prints:
 
 ```text

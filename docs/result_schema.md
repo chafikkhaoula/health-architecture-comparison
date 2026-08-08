@@ -96,12 +96,17 @@ history with expected actors and access decision.
   attempt and its reason. It is never used to erase the attempt directory.
 - `tamper_trials.csv` is reserved for separately executed scenario trials and
   is not populated by the ordinary performance matrix.
-- `manifest.json` records the frozen matrix, commit, protocol/dependency hashes,
-  allowlisted non-secret configuration, host and Docker metadata, live Fabric
-  block-cutting configuration, timing bounds, and architecture order.
+- `manifest.json` records the frozen matrix, base commit,
+  protocol/dependency hashes, allowlisted non-secret configuration, host and
+  Docker metadata, live Fabric block-cutting configuration, timing bounds, and
+  architecture order. If a restricted monitoring-only continuation is used,
+  `code_provenance.segments` also records its commit, changed paths, diff hash,
+  source-hash file, reason, and timing scope.
 - `progress.json` is the resumable checkpoint ledger. On finalization it lists
-  exactly one completed attempt per pair.
-- `source_hashes.json` maps tracked source paths to SHA-256 digests.
+  exactly one completed attempt per pair. Every attempt records its execution
+  commit and code-provenance segment.
+- `source_hashes.json` maps tracked source paths to SHA-256 digests at batch
+  start; each continuation has a separate immutable source-hash file.
 - `verification.json` records structural counts and the durable correctness
   gate.
 - `SHA256SUMS` covers every preserved batch file except itself. Final batch

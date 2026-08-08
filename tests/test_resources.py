@@ -99,6 +99,36 @@ class _FakeProcess:
         self.stdout = _FakeStdout(lines)
 
 
+class _FakeCleanupProcess:
+    def __init__(
+        self,
+        *,
+        communicate_stalls_until_killed: bool = False,
+    ) -> None:
+        self.stdout = _FakeStdout([])
+        self.returncode: int | None = None
+        self.communicate_stalls_until_killed = (
+            communicate_stalls_until_killed
+        )
+        self.terminate_called = False
+        self.kill_called = False
+        self.communicate_calls = 0
+
+    def terminate(self) -> None:
+        self.terminate_called = True
+
+    def kill(self) -> None:
+        self.kill_called = True
+        self.returncode = -9
+
+    async def communicate(self) -> tuple[bytes, bytes]:
+        self.communicate_calls += 1
+        if self.communicate_stalls_until_killed and not self.kill_called:
+            await asyncio.Event().wait()
+        self.returncode = self.returncode if self.returncode is not None else -15
+        return b"", b""
+
+
 def test_docker_stats_monitor_stop_cancels_stalled_reader() -> None:
     monitor = DockerStatsMonitor(
         _context(),
@@ -119,6 +149,48 @@ def test_docker_stats_monitor_stop_cancels_stalled_reader() -> None:
         assert monitor._reader is None
 
     asyncio.run(exercise())
+
+
+def test_docker_stats_monitor_stop_drains_pipe_on_normal_exit() -> None:
+    monitor = DockerStatsMonitor(
+        _context(),
+        ("abc123",),
+        sample_interval_seconds=1,
+    )
+    process = _FakeCleanupProcess()
+    monitor._process = process  # type: ignore[assignment]
+
+    asyncio.run(monitor._stop())
+
+    assert process.terminate_called is True
+    assert process.kill_called is False
+    assert process.communicate_calls == 1
+    assert monitor._process is None
+
+
+def test_docker_stats_monitor_stop_escalates_to_sigkill(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "benchmark.resources._PROCESS_STOP_TIMEOUT_SECONDS",
+        0.01,
+    )
+    monitor = DockerStatsMonitor(
+        _context(),
+        ("abc123",),
+        sample_interval_seconds=1,
+    )
+    process = _FakeCleanupProcess(
+        communicate_stalls_until_killed=True,
+    )
+    monitor._process = process  # type: ignore[assignment]
+
+    asyncio.run(monitor._stop())
+
+    assert process.terminate_called is True
+    assert process.kill_called is True
+    assert process.communicate_calls == 2
+    assert monitor._process is None
 
 
 def test_docker_stats_monitor_ignores_blank_and_ansi_stream_frames() -> None:

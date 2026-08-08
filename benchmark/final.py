@@ -55,6 +55,20 @@ OPERATION_ORDER = (
     OperationId.VERIFY_INTEGRITY,
     OperationId.RETRIEVE_AUDIT,
 )
+_MONITORING_CONTINUATION_PATHS = frozenset(
+    {
+        "benchmark/final.py",
+        "benchmark/official_final.sh",
+        "benchmark/resources.py",
+        "docs/final_runner_handoff.md",
+        "docs/result_schema.md",
+        "tests/test_final.py",
+        "tests/test_resources.py",
+    }
+)
+_MONITORING_CONTINUATION_REASON = (
+    "docker_stats_stream_cleanup_deadlock"
+)
 ADMINISTRATOR = ActorContext(
     actor_id="administrator-final",
     organization_id="org-final",
@@ -84,6 +98,7 @@ class FinalConfig:
     driver: Path
     resume: bool = False
     smoke: bool = False
+    monitoring_only_continuation: bool = False
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", self.batch_id):
@@ -106,6 +121,10 @@ class FinalConfig:
             raise ValueError("timeout must be positive")
         if self.resource_sampling_interval_seconds <= 0:
             raise ValueError("resource sampling interval must be positive")
+        if self.monitoring_only_continuation and not self.resume:
+            raise ValueError(
+                "monitoring-only continuation requires resume mode"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,6 +253,22 @@ def _git(*arguments: str) -> str:
         text=True,
     )
     return completed.stdout.strip()
+
+
+def _git_changed_paths(base_commit: str, current_commit: str) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            path
+            for path in _git(
+                "diff",
+                "--name-only",
+                "--diff-filter=ACMRTUXB",
+                base_commit,
+                current_commit,
+            ).splitlines()
+            if path
+        )
+    )
 
 
 def _command_json(*arguments: str) -> object:
@@ -452,6 +487,8 @@ class BatchCheckpoint:
         self.output_dir = config.output_root / config.batch_id
         self.manifest_path = self.output_dir / "manifest.json"
         self.progress_path = self.output_dir / "progress.json"
+        self.execution_git_commit = ""
+        self.provenance_segment_id = ""
         if config.resume:
             if not self.output_dir.is_dir():
                 raise FileNotFoundError(
@@ -468,6 +505,8 @@ class BatchCheckpoint:
         else:
             self.output_dir.mkdir(parents=True, exist_ok=False)
             self.manifest = self._new_manifest()
+            self.execution_git_commit = str(self.manifest["git_commit"])
+            self.provenance_segment_id = "base"
             self.progress = {
                 "schema_version": 1,
                 "status": "running",
@@ -516,6 +555,17 @@ class BatchCheckpoint:
             "ended_at_utc": None,
             "git_commit": commit,
             "git_dirty": False,
+            "code_provenance": {
+                "base_segment_id": "base",
+                "segments": [
+                    {
+                        "segment_id": "base",
+                        "git_commit": commit,
+                        "change_class": "locked_batch_start",
+                        "source_hashes_file": "source_hashes.json",
+                    }
+                ],
+            },
             "protocol_sha256": _sha256(protocol),
             "source_hashes_file": "source_hashes.json",
             "input_dataset_index": {
@@ -571,12 +621,119 @@ class BatchCheckpoint:
         }
         if self.manifest.get("workload_matrix") != expected:
             raise ValueError("resume workload matrix differs from manifest")
-        if self.manifest.get("git_commit") != _git("rev-parse", "HEAD"):
-            raise ValueError("resume commit differs from manifest")
         if _git("status", "--porcelain"):
             raise ValueError("resume requires a clean worktree")
         if self.manifest.get("status") == "completed":
             raise ValueError("batch is already completed")
+
+        base_commit = str(self.manifest.get("git_commit", ""))
+        current_commit = _git("rev-parse", "HEAD")
+        if not base_commit:
+            raise ValueError("resume manifest lacks a base git commit")
+
+        provenance = self.manifest.setdefault(
+            "code_provenance",
+            {
+                "base_segment_id": "base",
+                "segments": [
+                    {
+                        "segment_id": "base",
+                        "git_commit": base_commit,
+                        "change_class": "locked_batch_start",
+                        "source_hashes_file": "source_hashes.json",
+                    }
+                ],
+            },
+        )
+        if not isinstance(provenance, dict):
+            raise TypeError("invalid code provenance in manifest")
+        segments = provenance.get("segments")
+        if not isinstance(segments, list):
+            raise TypeError("invalid code provenance segments")
+
+        segment = next(
+            (
+                item
+                for item in segments
+                if isinstance(item, dict)
+                and item.get("git_commit") == current_commit
+            ),
+            None,
+        )
+        if current_commit == base_commit:
+            segment = next(
+                (
+                    item
+                    for item in segments
+                    if isinstance(item, dict)
+                    and item.get("segment_id") == "base"
+                ),
+                None,
+            )
+        elif segment is None:
+            if not self.config.monitoring_only_continuation:
+                raise ValueError("resume commit differs from manifest")
+            changed_paths = _git_changed_paths(base_commit, current_commit)
+            unexpected_paths = (
+                set(changed_paths) - _MONITORING_CONTINUATION_PATHS
+            )
+            if (
+                not changed_paths
+                or "benchmark/resources.py" not in changed_paths
+                or unexpected_paths
+            ):
+                unexpected = ", ".join(sorted(unexpected_paths)) or "none"
+                raise ValueError(
+                    "monitoring-only continuation contains unsupported "
+                    f"changes; unexpected paths: {unexpected}"
+                )
+            segment_id = f"monitoring-continuation-{len(segments):02d}"
+            source_hashes_file = f"source_hashes.{segment_id}.json"
+            diff_payload = _git(
+                "diff", "--binary", base_commit, current_commit
+            ).encode("utf-8")
+            segment = {
+                "segment_id": segment_id,
+                "git_commit": current_commit,
+                "parent_batch_commit": base_commit,
+                "change_class": "monitoring_only",
+                "reason": _MONITORING_CONTINUATION_REASON,
+                "changed_paths": list(changed_paths),
+                "diff_sha256": hashlib.sha256(diff_payload).hexdigest(),
+                "source_hashes_file": source_hashes_file,
+                "authorized_at_utc": _utc_now().isoformat(),
+                "timing_scope": "outside_measured_http_request_boundary",
+            }
+            segments.append(segment)
+            _atomic_json(
+                self.output_dir / source_hashes_file,
+                _source_hashes(),
+            )
+
+        if not isinstance(segment, dict):
+            raise TypeError("resume provenance segment is unavailable")
+        self.execution_git_commit = current_commit
+        self.provenance_segment_id = str(segment["segment_id"])
+        if current_commit != base_commit:
+            print(
+                "resume provenance "
+                f"{self.provenance_segment_id}: "
+                f"base={base_commit[:12]} "
+                f"execution={current_commit[:12]}",
+                flush=True,
+            )
+
+        metadata_changed = False
+        for attempts in self.progress.get("attempts", {}).values():
+            for attempt in attempts:
+                if "execution_git_commit" not in attempt:
+                    attempt["execution_git_commit"] = base_commit
+                    metadata_changed = True
+                if "provenance_segment_id" not in attempt:
+                    attempt["provenance_segment_id"] = "base"
+                    metadata_changed = True
+        if metadata_changed or current_commit != base_commit:
+            self.persist()
 
     def _recover_interrupted(self) -> None:
         changed = False
@@ -626,6 +783,8 @@ class BatchCheckpoint:
                 "phase": "created",
                 "started_at_utc": _utc_now().isoformat(),
                 "ended_at_utc": None,
+                "execution_git_commit": self.execution_git_commit,
+                "provenance_segment_id": self.provenance_segment_id,
             }
         )
         attempt_dir = self.output_dir / "attempts" / pair_key / attempt_id
@@ -1296,6 +1455,71 @@ def _csv_count(path: Path) -> int:
         return sum(1 for _ in csv.DictReader(handle))
 
 
+def _verify_code_provenance(
+    output_dir: Path,
+    manifest: dict[str, object],
+    progress: dict[str, object],
+) -> int:
+    provenance = manifest.get("code_provenance")
+    if not isinstance(provenance, dict):
+        raise TypeError("code provenance is missing")
+    raw_segments = provenance.get("segments")
+    if not isinstance(raw_segments, list) or not raw_segments:
+        raise ValueError("code provenance segments are missing")
+
+    segments: dict[str, dict[str, object]] = {}
+    for raw_segment in raw_segments:
+        if not isinstance(raw_segment, dict):
+            raise TypeError("invalid code provenance segment")
+        segment_id = str(raw_segment.get("segment_id", ""))
+        commit = str(raw_segment.get("git_commit", ""))
+        source_hashes_file = str(
+            raw_segment.get("source_hashes_file", "")
+        )
+        if not segment_id or not commit or not source_hashes_file:
+            raise ValueError("incomplete code provenance segment")
+        if segment_id in segments:
+            raise ValueError("duplicate code provenance segment")
+        if not (output_dir / source_hashes_file).is_file():
+            raise ValueError("code provenance source hashes are missing")
+        if raw_segment.get("change_class") == "monitoring_only":
+            changed_paths = set(raw_segment.get("changed_paths", []))
+            if (
+                "benchmark/resources.py" not in changed_paths
+                or changed_paths - _MONITORING_CONTINUATION_PATHS
+            ):
+                raise ValueError(
+                    "monitoring-only provenance contains unsupported paths"
+                )
+        segments[segment_id] = raw_segment
+
+    base_segment_id = str(provenance.get("base_segment_id", ""))
+    if (
+        base_segment_id not in segments
+        or segments[base_segment_id].get("git_commit")
+        != manifest.get("git_commit")
+    ):
+        raise ValueError("base code provenance does not match manifest")
+
+    attempts = progress.get("attempts")
+    if not isinstance(attempts, dict):
+        raise TypeError("progress attempts are missing")
+    for pair_attempts in attempts.values():
+        if not isinstance(pair_attempts, list):
+            raise TypeError("invalid progress attempt list")
+        for attempt in pair_attempts:
+            if not isinstance(attempt, dict):
+                raise TypeError("invalid progress attempt")
+            segment_id = str(attempt.get("provenance_segment_id", ""))
+            commit = str(attempt.get("execution_git_commit", ""))
+            if (
+                segment_id not in segments
+                or segments[segment_id].get("git_commit") != commit
+            ):
+                raise ValueError("attempt code provenance is inconsistent")
+    return len(segments)
+
+
 def verify_batch(output_dir: Path) -> dict[str, object]:
     manifest = json.loads(
         (output_dir / "manifest.json").read_text(encoding="utf-8")
@@ -1353,6 +1577,11 @@ def verify_batch(output_dir: Path) -> dict[str, object]:
         raise ValueError("batch is not completed")
     if len(progress.get("completed_pairs", {})) != expected_pairs:
         raise ValueError("completed-pair checkpoint count is incorrect")
+    provenance_segment_count = _verify_code_provenance(
+        output_dir,
+        manifest,
+        progress,
+    )
     live_config = manifest.get("live_fabric_channel_configuration", {})
     if (
         live_config.get("batch_timeout") != "2s"
@@ -1483,6 +1712,7 @@ def verify_batch(output_dir: Path) -> dict[str, object]:
         "correctness_gate": (
             "PASS" if correctness_failures == 0 else "FAIL"
         ),
+        "code_provenance_segments": provenance_segment_count,
     }
 
 
@@ -1566,6 +1796,14 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--batch-id", default=_default_batch_id())
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--monitoring-only-continuation",
+        action="store_true",
+        help=(
+            "permit a provenance-recorded resume when only approved "
+            "benchmark monitoring/orchestration files changed"
+        ),
+    )
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument(
@@ -1618,6 +1856,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         driver=arguments.driver,
         resume=arguments.resume,
         smoke=arguments.smoke,
+        monitoring_only_continuation=(
+            arguments.monitoring_only_continuation
+        ),
     )
     completed = asyncio.run(run_final(config))
     print(f"FINAL_OUTPUT={completed}")

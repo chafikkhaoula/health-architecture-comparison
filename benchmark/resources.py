@@ -79,6 +79,7 @@ _SIZE_RE = re.compile(
     re.IGNORECASE,
 )
 _ANSI_CSI_RE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
+_PROCESS_STOP_TIMEOUT_SECONDS = 5.0
 _SIZE_FACTORS = {
     "b": 1,
     "kb": 1000,
@@ -265,31 +266,43 @@ class DockerStatsMonitor:
 
     async def _stop(self) -> None:
         process = self._process
-        if process is not None and process.returncode is None:
-            try:
-                process.terminate()
-            except ProcessLookupError:
-                pass
-            try:
-                await asyncio.wait_for(process.wait(), timeout=5.0)
-            except TimeoutError:
+        reader = self._reader
+        try:
+            if process is not None and process.returncode is None:
                 try:
-                    process.kill()
+                    process.terminate()
                 except ProcessLookupError:
                     pass
+                if reader is not None and not reader.done():
+                    reader.cancel()
+                    await asyncio.gather(reader, return_exceptions=True)
                 try:
-                    await asyncio.wait_for(process.wait(), timeout=5.0)
-                except TimeoutError as exc:
-                    raise RuntimeError(
-                        "Docker resource monitor did not stop after SIGKILL"
-                    ) from exc
-        reader = self._reader
-        if reader is not None:
-            if not reader.done():
-                reader.cancel()
-            await asyncio.gather(reader, return_exceptions=True)
-        self._process = None
-        self._reader = None
+                    await asyncio.wait_for(
+                        process.communicate(),
+                        timeout=_PROCESS_STOP_TIMEOUT_SECONDS,
+                    )
+                except TimeoutError:
+                    try:
+                        process.kill()
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        await asyncio.wait_for(
+                            process.communicate(),
+                            timeout=_PROCESS_STOP_TIMEOUT_SECONDS,
+                        )
+                    except TimeoutError as exc:
+                        raise RuntimeError(
+                            "Docker resource monitor did not stop "
+                            "after SIGKILL"
+                        ) from exc
+            if reader is not None:
+                if not reader.done():
+                    reader.cancel()
+                await asyncio.gather(reader, return_exceptions=True)
+        finally:
+            self._process = None
+            self._reader = None
 
     def mark_measurement_started(self) -> None:
         self._measurement_started_ns = perf_counter_ns()
