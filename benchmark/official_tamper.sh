@@ -6,7 +6,7 @@ PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PYTHON="$PROJECT_ROOT/.venv/bin/python"
 DRIVER="$SCRIPT_DIR/final_environment.sh"
 RQ1_BATCH_ID="final-20260805T122631Z-11a3fbb"
-EXPECTED_BRANCH="phase-3-fabric-adapter"
+EXPECTED_BRANCH="phase-4-experiment-runner"
 ENVIRONMENT_STARTED=false
 
 cleanup() {

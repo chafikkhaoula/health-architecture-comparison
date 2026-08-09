@@ -68,7 +68,7 @@ batch directory.
 
 ## Controlled commands
 
-After the patch is committed on a clean `phase-3-fabric-adapter` branch:
+After the patch is committed on a clean `phase-4-experiment-runner` branch:
 
 ```bash
 python -m compileall -q shared benchmark tests
