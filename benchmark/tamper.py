@@ -55,6 +55,7 @@ PRINCIPAL = ActorContext(
     actor_id="clinician-rq2",
     organization_id="org-rq2",
 )
+ENDORSEMENT_POLICY_FAILURE = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -303,6 +304,23 @@ def _percentile(values: Sequence[float], probability: float) -> float:
     upper = min(lower + 1, len(ordered) - 1)
     fraction = rank - lower
     return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+
+def _protected_write_outcome_met(
+    *,
+    rejected: bool | None,
+    state_changed: bool | None,
+    gateway_stage: str | None,
+    validation_code: int | None,
+) -> bool:
+    if rejected is not True or state_changed is not False:
+        return False
+    if gateway_stage == "endorse":
+        return True
+    return (
+        gateway_stage == "commit_validation"
+        and validation_code == ENDORSEMENT_POLICY_FAILURE
+    )
 
 
 def _summaries(
@@ -602,9 +620,12 @@ class TamperExperiment:
         notes: str = "",
     ) -> TamperTrial:
         expected_met = (
-            protected_write_rejected is True
-            and protected_state_changed is False
-            and gateway_stage == "endorse"
+            _protected_write_outcome_met(
+                rejected=protected_write_rejected,
+                state_changed=protected_state_changed,
+                gateway_stage=gateway_stage,
+                validation_code=validation_code,
+            )
             if definition.protected_write
             else detected is definition.expected_detection
         )

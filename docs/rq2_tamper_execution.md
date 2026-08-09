@@ -42,8 +42,11 @@ must pass again before the next trial.
 - For privileged consistent rewrites, the expected centralized result is no
   internal alarm. The experiment controller retains the original hash or tail
   anchor only to demonstrate what an independent reference could detect.
-- For insufficient endorsement, conformance requires an `endorse`-stage
-  rejection and identical absent world state before and after the attempt.
+- For insufficient endorsement, conformance requires identical absent world
+  state before and after the attempt, plus either an `endorse`-stage rejection
+  or a `commit_validation` rejection with Fabric validation code 10
+  (`ENDORSEMENT_POLICY_FAILURE`). The pilot observed the latter valid Fabric
+  path; this criterion was clarified before the final experiment.
 - Verification latency covers the verifier only. Mutation, restoration,
   setup, and Fabric submission/rejection time are outside that measurement.
 

@@ -7,6 +7,7 @@ from benchmark.tamper import (
     SCENARIOS,
     TamperTrial,
     _first_invalid_rows,
+    _protected_write_outcome_met,
     _record_id,
     _summaries,
 )
@@ -158,6 +159,36 @@ def test_record_ids_are_unique_and_fhir_compatible() -> None:
     assert all(
         all(character.isalnum() or character in ".-" for character in value)
         for value in identifiers
+    )
+
+
+def test_protected_write_accepts_both_valid_fabric_rejection_paths() -> None:
+    assert _protected_write_outcome_met(
+        rejected=True,
+        state_changed=False,
+        gateway_stage="endorse",
+        validation_code=None,
+    )
+    assert _protected_write_outcome_met(
+        rejected=True,
+        state_changed=False,
+        gateway_stage="commit_validation",
+        validation_code=10,
+    )
+
+
+def test_protected_write_rejects_wrong_code_or_changed_state() -> None:
+    assert not _protected_write_outcome_met(
+        rejected=True,
+        state_changed=False,
+        gateway_stage="commit_validation",
+        validation_code=11,
+    )
+    assert not _protected_write_outcome_met(
+        rejected=True,
+        state_changed=True,
+        gateway_stage="commit_validation",
+        validation_code=10,
     )
 
 
