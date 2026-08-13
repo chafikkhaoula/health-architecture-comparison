@@ -1,0 +1,266 @@
+{
+  "analysis": {
+    "alpha": 0.05,
+    "bootstrap_interval": "2.5th--97.5th percentile of paired median resamples",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260813,
+    "difference_direction": "Fabric minus Traditional",
+    "holm_family": "nine workload/concurrency configurations within each outcome-operation family",
+    "independent_unit": "one fully reset paired repetition",
+    "quantile_method": "type 7 / linear interpolation",
+    "ratio_direction": "Fabric divided by Traditional",
+    "wilcoxon": "two-sided exhaustive signed-rank permutation with Pratt zeros"
+  },
+  "checks": {
+    "all_run_success_rates_100_percent": {
+      "expected": true,
+      "observed": true,
+      "pass": true
+    },
+    "architecture_operation_runs": {
+      "expected": 1080,
+      "observed": 1080,
+      "pass": true
+    },
+    "fabric_higher_p95_latency_in_all_54_cells": {
+      "expected": true,
+      "observed": true,
+      "pass": true
+    },
+    "fabric_insufficient_endorsement_unique_transaction_ids": {
+      "expected": 10,
+      "observed": 10,
+      "pass": true
+    },
+    "fabric_insufficient_endorsements_rejected": {
+      "expected": 10,
+      "observed": 10,
+      "pass": true
+    },
+    "fabric_lower_throughput_in_all_54_cells": {
+      "expected": true,
+      "observed": true,
+      "pass": true
+    },
+    "fabric_offchain_changes_detected": {
+      "expected": 10,
+      "observed": 10,
+      "pass": true
+    },
+    "holm_significant_latency_cells": {
+      "expected": 46,
+      "observed": 46,
+      "pass": true
+    },
+    "holm_significant_throughput_cells": {
+      "expected": 54,
+      "observed": 54,
+      "pass": true
+    },
+    "maximum_valid_transactions_per_observed_block": {
+      "expected": 10,
+      "observed": 10,
+      "pass": true
+    },
+    "measured_requests": {
+      "expected": 576000,
+      "observed": 576000,
+      "pass": true
+    },
+    "operation_configuration_cells_per_outcome": {
+      "expected": 54,
+      "observed": 54,
+      "pass": true
+    },
+    "paired_repetitions": {
+      "expected": 90,
+      "observed": 90,
+      "pass": true
+    },
+    "rq2_baseline_false_positives": {
+      "expected": 0,
+      "observed": 0,
+      "pass": true
+    },
+    "rq2_mutations_applied": {
+      "expected": 80,
+      "observed": 80,
+      "pass": true
+    },
+    "rq2_trials": {
+      "expected": 80,
+      "observed": 80,
+      "pass": true
+    },
+    "rq2_verified_restorations": {
+      "expected": 80,
+      "observed": 80,
+      "pass": true
+    },
+    "runs_with_one_complete_resource_snapshot_percent_rounded": {
+      "expected": 19.3,
+      "observed": 19.3,
+      "pass": true
+    },
+    "traditional_partial_changes_detected": {
+      "expected": 40,
+      "observed": 40,
+      "pass": true
+    },
+    "traditional_privileged_coherent_rewrites_detected": {
+      "expected": 0,
+      "observed": 0,
+      "pass": true
+    }
+  },
+  "claims": {
+    "all_run_success_rates_100_percent": true,
+    "architecture_operation_runs": 1080,
+    "expected_audit_events_per_architecture": {
+      "fabric": 144000,
+      "traditional": 144000
+    },
+    "fabric_higher_p95_latency_in_all_54_cells": true,
+    "fabric_insufficient_endorsement_http_statuses": "409",
+    "fabric_insufficient_endorsement_unique_transaction_ids": 10,
+    "fabric_insufficient_endorsement_validation_codes": "10",
+    "fabric_insufficient_endorsements_rejected": 10,
+    "fabric_lower_throughput_in_all_54_cells": true,
+    "fabric_observed_valid_write_transactions": 144000,
+    "fabric_offchain_changes_detected": 10,
+    "holm_significant_latency_cells": 46,
+    "holm_significant_throughput_cells": 54,
+    "maximum_valid_transactions_per_observed_block": 10,
+    "measured_requests": 576000,
+    "op6_histories_per_architecture": {
+      "fabric": 48000,
+      "traditional": 48000
+    },
+    "operation_configuration_cells_per_outcome": 54,
+    "operation_level_latency_ratios": {
+      "OP1": 44.77810271515405,
+      "OP2": 3.619603136728909,
+      "OP3": 31.259528406598857,
+      "OP4": 43.781828136853775,
+      "OP5": 2.031284045161886,
+      "OP6": 2.065509746578597
+    },
+    "operation_level_throughput_retained_percent": {
+      "OP1": 1.420944015298368,
+      "OP2": 25.474277247552056,
+      "OP3": 1.607245364180456,
+      "OP4": 1.4218780325494156,
+      "OP5": 42.63785826643899,
+      "OP6": 49.765910237823405
+    },
+    "paired_repetitions": 90,
+    "rq2_baseline_false_positives": 0,
+    "rq2_mutations_applied": 80,
+    "rq2_trials": 80,
+    "rq2_verified_restorations": 80,
+    "runs_with_one_complete_resource_snapshot_percent": 19.25925925925926,
+    "storage_configuration_median_ratio_maximum": 4.85370598368069,
+    "storage_configuration_median_ratio_minimum": 3.883910987395642,
+    "traditional_partial_changes_detected": 40,
+    "traditional_privileged_coherent_rewrites_detected": 0
+  },
+  "resource_sampling": {
+    "available": true,
+    "complete_snapshots": 207107,
+    "definition": "Within each measured run, rows are ordered independently for each component and assigned a zero-based sample ordinal. An ordinal is complete when every component emitted a row at that ordinal; therefore the number of complete snapshots is the minimum component sample count.",
+    "maximum_components_per_run": 8,
+    "measured_runs": 1080,
+    "minimum_components_per_run": 2,
+    "partial_snapshot_ordinals_dropped": 299285,
+    "runs_with_one_complete_snapshot": 208,
+    "runs_with_one_complete_snapshot_percent": 19.25925925925926,
+    "runs_with_two_or_more_complete_snapshots": 872,
+    "runs_with_zero_complete_snapshots": 0
+  },
+  "selected_source_hash_checks": {
+    "rq1": {
+      "block_boundaries.csv": {
+        "expected_sha256": "b6ad9f6199e2eb692265dc8746ad841bff90c154d78f0ed3b550614ad6eda322",
+        "matches_manifest": true,
+        "observed_sha256": "b6ad9f6199e2eb692265dc8746ad841bff90c154d78f0ed3b550614ad6eda322",
+        "present": true
+      },
+      "exclusions.csv": {
+        "expected_sha256": "2ce700ab92a38f1f3ebd1fa02c3ca6247970ea6536e93d6e457c72e37fa4d77c",
+        "matches_manifest": true,
+        "observed_sha256": "2ce700ab92a38f1f3ebd1fa02c3ca6247970ea6536e93d6e457c72e37fa4d77c",
+        "present": true
+      },
+      "fabric_blocks.csv": {
+        "expected_sha256": "0aa2251b8fb4c5af908a4730f3f2202c85bb4f560276c81c74ec9a36061ce112",
+        "matches_manifest": true,
+        "observed_sha256": "0aa2251b8fb4c5af908a4730f3f2202c85bb4f560276c81c74ec9a36061ce112",
+        "present": true
+      },
+      "inputs.csv": {
+        "expected_sha256": "18a5e6cf28559a00b0cf130efd70afc02fc9c1a056538090b6754617f4a79b50",
+        "matches_manifest": true,
+        "observed_sha256": "18a5e6cf28559a00b0cf130efd70afc02fc9c1a056538090b6754617f4a79b50",
+        "present": true
+      },
+      "manifest.json": {
+        "expected_sha256": "b1512587c26d44269e581e4ab8ed338991b4b01a4589a2a7d3d5c3685ae3e2a4",
+        "matches_manifest": true,
+        "observed_sha256": "b1512587c26d44269e581e4ab8ed338991b4b01a4589a2a7d3d5c3685ae3e2a4",
+        "present": true
+      },
+      "runs.csv": {
+        "expected_sha256": "b7d80e2144d76b9ad2ea726ba1ff03cc56b4cc46e7a8250a50ff8aaece073acb",
+        "matches_manifest": true,
+        "observed_sha256": "b7d80e2144d76b9ad2ea726ba1ff03cc56b4cc46e7a8250a50ff8aaece073acb",
+        "present": true
+      },
+      "storage.csv": {
+        "expected_sha256": "714117c34293d75c0fbc0fe84f94b7b2a70af50453bfe1e5f45dcae5277da219",
+        "matches_manifest": true,
+        "observed_sha256": "714117c34293d75c0fbc0fe84f94b7b2a70af50453bfe1e5f45dcae5277da219",
+        "present": true
+      },
+      "verification.json": {
+        "expected_sha256": "25eaea746acbcbb9099b6f13af01629ee0b6104abb7539f0e104665efa975355",
+        "matches_manifest": true,
+        "observed_sha256": "25eaea746acbcbb9099b6f13af01629ee0b6104abb7539f0e104665efa975355",
+        "present": true
+      }
+    },
+    "rq2": {
+      "manifest.json": {
+        "expected_sha256": "42d3cf63785cea9c9ad2a49832116c0e72030096dc3d98de432ff923510ddf1b",
+        "matches_manifest": true,
+        "observed_sha256": "42d3cf63785cea9c9ad2a49832116c0e72030096dc3d98de432ff923510ddf1b",
+        "present": true
+      },
+      "scenario_summary.csv": {
+        "expected_sha256": "fdf0139e319bcf0f0b5bb06e1ac5797b7eca532c30d9fb1149803da394ab66b4",
+        "matches_manifest": true,
+        "observed_sha256": "fdf0139e319bcf0f0b5bb06e1ac5797b7eca532c30d9fb1149803da394ab66b4",
+        "present": true
+      },
+      "tamper_trials.csv": {
+        "expected_sha256": "3be37dfdfa8c851056fc5053b6a3c5de4dbe313d115c5084f4fea55321efd554",
+        "matches_manifest": true,
+        "observed_sha256": "3be37dfdfa8c851056fc5053b6a3c5de4dbe313d115c5084f4fea55321efd554",
+        "present": true
+      },
+      "verification.json": {
+        "expected_sha256": "7a58dae998afa01cf126b19eee9f75e4309a63f6002f9df5f700c9840cdc6c0a",
+        "matches_manifest": true,
+        "observed_sha256": "7a58dae998afa01cf126b19eee9f75e4309a63f6002f9df5f700c9840cdc6c0a",
+        "present": true
+      }
+    }
+  },
+  "software": {
+    "matplotlib": "3.11.1",
+    "numpy": "2.5.2",
+    "pandas": "2.3.3",
+    "python": "3.12.3",
+    "scipy": "1.18.0"
+  },
+  "status": "PASS"
+}

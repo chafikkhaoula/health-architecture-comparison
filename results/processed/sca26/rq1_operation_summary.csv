@@ -1,0 +1,13 @@
+outcome,operation,operation_class,configuration_count,operation_level_median_ratio,minimum_configuration_median_ratio,maximum_configuration_median_ratio,throughput_retained_percent,holm_significant_configurations
+p95_latency_ms,OP1,ledger_write,9,44.7781027152,3.00273105361,119.636582187,,8
+p95_latency_ms,OP2,read_check,9,3.61960313673,2.97558226051,4.6161534502,,9
+p95_latency_ms,OP3,ledger_write,9,31.2595284066,2.37090896634,118.975743021,,9
+p95_latency_ms,OP4,ledger_write,9,43.7818281369,2.30711541683,151.29251727,,9
+p95_latency_ms,OP5,read_check,9,2.03128404516,1.42741994485,2.70218821164,,5
+p95_latency_ms,OP6,read_check,9,2.06550974658,1.54592278919,3.71613357334,,6
+successful_throughput_ops_s,OP1,ledger_write,9,0.014209440153,0.00617983386127,0.319833772019,1.4209440153,9
+successful_throughput_ops_s,OP2,read_check,9,0.254742772476,0.159212778596,0.31311144804,25.4742772476,9
+successful_throughput_ops_s,OP3,ledger_write,9,0.0160724536418,0.0061804514745,0.40563555545,1.60724536418,9
+successful_throughput_ops_s,OP4,ledger_write,9,0.0142187803255,0.0054846383371,0.454401022172,1.42187803255,9
+successful_throughput_ops_s,OP5,read_check,9,0.426378582664,0.384372895084,0.516125454382,42.6378582664,9
+successful_throughput_ops_s,OP6,read_check,9,0.497659102378,0.343746993063,0.600320275555,49.7659102378,9

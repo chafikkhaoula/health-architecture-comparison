@@ -1,0 +1,7 @@
+batch_id,pair_id,repetition,attempt_id,workload_size,concurrency,reason_code,reason_message,invalidated_at_utc
+final-20260805T122631Z-11a3fbb,final-20260805T122631Z-11a3fbb-n0500-c01-r03,3,n0500-c01-r03-attempt01,500,1,benchmark_infrastructure_failure,RuntimeError: Docker resource monitor did not stop after SIGKILL,2026-08-05T23:07:51.972895+00:00
+final-20260805T122631Z-11a3fbb,final-20260805T122631Z-11a3fbb-n0500-c10-r02,2,n0500-c10-r02-attempt01,500,10,benchmark_infrastructure_failure,BenchmarkInfrastructureError: environment action failed: prime fabric,2026-08-06T18:11:28.828132+00:00
+final-20260805T122631Z-11a3fbb,final-20260805T122631Z-11a3fbb-n1000-c01-r08,8,n1000-c01-r08-attempt01,1000,1,benchmark_infrastructure_failure,RuntimeError: idle baseline sampling timed out,2026-08-08T00:35:34.274404+00:00
+final-20260805T122631Z-11a3fbb,final-20260805T122631Z-11a3fbb-n1000-c01-r08,8,n1000-c01-r08-attempt02,1000,1,benchmark_infrastructure_failure,RuntimeError: Docker resource monitor did not stop after SIGKILL,2026-08-08T11:16:01.471679+00:00
+final-20260805T122631Z-11a3fbb,final-20260805T122631Z-11a3fbb-n1000-c01-r08,8,n1000-c01-r08-attempt03,1000,1,benchmark_infrastructure_failure,BenchmarkInfrastructureError: environment action failed: prime fabric,2026-08-08T15:12:52.032851+00:00
+final-20260805T122631Z-11a3fbb,final-20260805T122631Z-11a3fbb-n1000-c10-r01,1,n1000-c10-r01-attempt01,1000,10,benchmark_infrastructure_failure,BenchmarkInfrastructureError: environment action failed: fresh-start fabric,2026-08-09T10:55:38.258626+00:00

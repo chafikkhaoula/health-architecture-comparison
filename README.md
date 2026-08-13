@@ -28,6 +28,7 @@ require their corresponding deployed infrastructure.
 - Frozen experiment design: `docs/experimental_protocol.md`
 - Versioned result fields: `docs/result_schema.md`
 - Phase 4 runner handoff: `docs/final_runner_handoff.md`
+- Paper analysis and replication instructions: `docs/replication_package.md`
 
 ## Locked final experiment
 
@@ -60,4 +61,20 @@ verified with:
 
 ```bash
 benchmark/official_final.sh verify FINAL_BATCH_ID
+```
+
+## Reproduce the paper analysis
+
+Download `sca26-analysis-input-release.zip` from the repository's GitHub Release,
+extract it as `replication-input/`, and run:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-analysis.txt
+python -m benchmark.analysis \
+  --rq1-dir replication-input/rq1 \
+  --rq2-dir replication-input/rq2 \
+  --output-dir results/processed/sca26 \
+  --skip-resources
 ```

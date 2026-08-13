@@ -1,0 +1,9 @@
+batch_id,scenario_id,protocol_mapping,architecture,trials,baseline_verification_passes,baseline_false_positives,mutated_trials,detected_trials,undetected_trials,detection_rate,protected_write_attempts,protected_write_rejections,protected_write_rejection_rate,protected_state_changes,expected_outcome_met_trials,restoration_verified_trials,median_verification_latency_ms,p95_verification_latency_ms,unique_transaction_ids,gateway_http_statuses,validation_codes
+tamper-final-20260809T195823Z-3f4eeaa,T1_PAYLOAD_ONLY,12.1,traditional,10,10,0,10,10,0,1,0,,,0,10,10,7.321516,8.52420225,0,,
+tamper-final-20260809T195823Z-3f4eeaa,T2_AUDIT_MODIFY,12.2a,traditional,10,10,0,10,10,0,1,0,,,0,10,10,4.263875,6.4834323,0,,
+tamper-final-20260809T195823Z-3f4eeaa,T3_AUDIT_DELETE,12.2b,traditional,10,10,0,10,10,0,1,0,,,0,10,10,8.2328575,11.3818739,0,,
+tamper-final-20260809T195823Z-3f4eeaa,T4_AUDIT_REORDER,12.2c,traditional,10,10,0,10,10,0,1,0,,,0,10,10,10.9549975,14.79913945,0,,
+tamper-final-20260809T195823Z-3f4eeaa,T5_PRIV_PAYLOAD_HASH_REWRITE,12.3a,traditional,10,10,0,10,0,10,0,0,,,0,10,10,5.9663655,7.31902935,0,,
+tamper-final-20260809T195823Z-3f4eeaa,T6_PRIV_AUDIT_SUFFIX_REWRITE,12.3b,traditional,10,10,0,10,0,10,0,0,,,0,10,10,16.817498,33.2916994,0,,
+tamper-final-20260809T195823Z-3f4eeaa,F1_OFFCHAIN_PAYLOAD,12.1_and_12.4,fabric,10,10,0,10,10,0,1,0,,,0,10,10,16.9003715,30.428761,0,,
+tamper-final-20260809T195823Z-3f4eeaa,F2_INSUFFICIENT_ENDORSEMENT,12.5,fabric,10,10,0,10,,,,10,10,1,0,10,10,8.9153165,14.3765609,10,409,10

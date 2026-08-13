@@ -26,3 +26,6 @@ results/raw/*
 !results/raw/.gitkeep
 results/processed/*
 !results/processed/.gitkeep
+!results/processed/sca26/
+!results/processed/sca26/**
+replication-input/
